@@ -1,0 +1,632 @@
+---
+title: "Cars price data analysis"
+author: "Mohammed Ansar Usman"
+date: "6/30/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Open file
+```{r open file}
+df=read.csv("cars24data.csv",sep = ",")
+
+```
+## Structure of dataset
+```{r Structure of Dataset}
+str(df)
+
+```
+## Libraries
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(forcats)
+```
+
+
+## Data preperation
+```{r Libraries }
+df=df %>% separate(t_model, into = c("year","brand","modelname"),sep = " ")
+
+# Change the variable mileage in to numeric
+
+df$t_mileage=gsub(",","",df$t_mileage)
+df$t_mileage=gsub(" ","",df$t_mileage)
+df$t_mileage=gsub("km","",df$t_mileage)
+df$t_mileage=as.numeric(df$t_mileage)
+
+# Variable t_cyl - change the variable in to two variable cyl and litre
+
+df=df %>% separate(t_cyl, into = c("cyl","ltr"),sep=" ",fill = "right")
+
+# Variable cylinder
+
+df$cyl=gsub("cyl","",df$cyl)
+df$cyl=ifelse(df$cyl=="1.5L",4,
+              ifelse(df$cyl=="3.8L",6,df$cyl)
+              )
+df$cyl=as.numeric(df$cyl)
+
+df$length=nchar(df$ltr)
+df$ltr=ifelse(df$cyl==4 & nchar(df$ltr)==0,"1.5L",
+              ifelse(df$cyl==6 & nchar(df$ltr)==0,"3.5L",
+                     df$ltr))
+df$ltr=gsub("L","",df$ltr,df$ltr)
+df$ltr=as.numeric(df$ltr)
+
+df=df %>% select(-X,-length)
+df=df %>% distinct()
+
+# Variable price
+
+df$t_price=gsub("AED","",df$t_price)
+df$t_price=gsub(",","",df$t_price)
+df$t_price=as.numeric(df$t_price)
+
+# Variable t_emi
+
+df$t_emi=gsub("AED","",df$t_emi)
+df$t_emi=gsub("/month","",df$t_emi)
+df$t_emi=gsub(",","",df$t_emi)
+df$t_emi=as.numeric(df$t_emi)
+
+# Variable t_dp
+
+df$t_dp=gsub("AED","",df$t_dp)
+df$t_dp=gsub(",","",df$t_dp)
+df$t_dp=gsub("downpayment","",df$t_dp)
+df$t_dp=as.numeric(df$t_dp)
+
+# Variable t_specs
+df$option=ifelse(grepl("Basic Option",df$t_specs,ignore.case = T)==T,"Basic",
+                 ifelse(grepl("Mid Option",df$t_specs,ignore.case = T)==T,"Mid",
+                        ifelse(grepl("Full Option",df$t_specs,ignore.case = T)==T,"Full",df$t_specs)
+                       )
+                 )
+
+anyNA(df)
+lapply(df, anyNA)
+
+
+df=df %>% mutate(Brand_Model=paste(brand,modelname))
+t=sort(table(df$Brand_Model),decreasing = T)
+head(t,30
+     )
+t=head(names(t),30)
+
+df=df %>% select(-t_dp,-t_emi,-t_specs)
+
+
+```
+## Problem Statement
+The main issue facing by used car sales companies is how the price will set based on market factors. 
+
+The objective of this project is to scrape data from any prominent e-commerce website selling automobiles and analyze the factors correlated to price.
+
+# Summary
+```{r Summary of Dataset}
+
+summary(df)
+```
+
+
+## Univariate analysis
+
+### Year
+```{r}
+
+# Variable Year
+
+df %>% ggplot(aes(year))+
+  geom_bar(fill="royalblue",col="black")+
+  labs(title ="Barplot of year",
+       x="Year",
+       y="Number of observations")
+
+
+```
+### Brand
+
+```{r}
+
+df %>% ggplot(aes(brand))+
+  geom_bar(fill="cornflowerblue",col="black")+
+  labs(title = "Barplot of Brand",
+       x="Brand Name",
+       y="Number of observations")+
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5))
+
+```
+
+### Model Name
+
+```{r}
+
+df %>% group_by(modelname) %>%  
+  summarise(No=n()) %>% 
+  arrange(desc(No)) %>% 
+  slice_max(No,n=30) %>% 
+  ggplot(aes(modelname,No,fill=-No ))+
+  geom_bar(stat = "identity")+
+  theme(axis.text.x=element_text(angle = 90,vjust = 0.5))+
+  labs(title ="Bar plot of top 30 Models",
+       x="Model Name",
+       y="No of observations")
+  
+
+
+```
+### Mileage
+
+```{r}
+df %>% ggplot(aes(t_mileage))+
+  geom_histogram(alpha=0.3,col="black",fill="royalblue",alpha=0.7)+
+  labs(title = "Histogram of Mileage",
+       x="Mileage",
+       y="No.of observations")
+
+xcut=cut(df$t_mileage,breaks = c(0,50000,100000,150000,200000))
+options(scipen=999)
+table(xcut)  
+```
+### Cylinder
+
+```{r}
+df %>% ggplot(aes(as.factor(cyl)))+
+  geom_bar(fill="royalblue",col="black")+
+  labs(title ="Barplot of cyl",
+       x="Cylinder",
+       y="Number of observations")
+
+```
+
+### Litre
+
+```{r}
+df %>% ggplot(aes(as.factor(ltr)))+
+  geom_bar(fill="royalblue",col="black",alha=0.7)+
+  labs(title ="Barplot of Litre",
+       x="Litre",
+       y="Number of observations")
+
+```
+### Price
+
+```{r}
+df %>% ggplot(aes(t_price))+
+  geom_histogram(alpha=0.7,col="black",fill="royalblue")+
+  labs(title = "Histogram of Price",
+       x="Price",
+       y='Number of observations')
+options(scipen = 999)
+
+xcut=cut(df$t_price,breaks = c(50000,75000,100000,125000,150000,200000))
+table(xcut)
+
+mean(df$t_price)
+median(df$t_price)
+sd(df$t_price)
+sd(df$t_price)/mean(df$t_price)
+
+```
+
+## Bivariate Analysis
+### Brand and Year
+
+```{r}
+df %>% ggplot(aes(brand,fill=year))+
+  geom_bar()+
+  scale_fill_brewer(palette = "Set1")+
+  labs(title = "Brand and Year",
+       x="Brand",
+       y="No. of observations")+
+  theme(axis.text.x = element_text(angle = 90))
+
+# Stacked chart 
+
+df %>% ggplot(aes(brand,fill=year))+
+  geom_bar(position = "fill")+
+  labs(title = "Brand and Year",
+       x="Brand",
+       y="No. of observations (%)")+
+  
+  scale_fill_brewer(palette = "Set1")+
+  theme(axis.text.x = element_text(angle = 90))
+
+  
+```
+
+### Model name and Year
+
+```{r}
+
+
+
+df %>%  filter(Brand_Model%in%t) %>% 
+  ggplot(aes(fct_infreq(Brand_Model) ,fill=year))+
+  geom_bar()+
+  scale_fill_brewer(palette = "Set3")+
+  theme(axis.text.x=element_text(angle = 90,vjust = 0.5))+
+  labs(title = "Top 3O Models and Year",
+       x="Model Name",
+       y="No. of observations")
+  
+  
+  
+```
+### Year and Mileage
+
+```{r}
+df %>% filter(t_mileage<=500000) %>% 
+  ggplot(aes(year,t_mileage))+
+  geom_boxplot()+
+  geom_jitter(col="red",alpha=0.5,size=0.1)+
+  stat_summary(fun = "mean",geom = "crossbar",col="blue")+
+  labs(title = "Mileage and Model Year",
+       subtitle = "Blue cross bar indicates mean of mileage",
+       y="Mileage",
+       x="Model Year")
+```
+
+### Option and Model Year
+
+```{r}
+df %>% ggplot(aes(year,fill=option))+
+  geom_bar()+
+  labs(title = " Model Year and Option",
+       y="No. of observations",
+       x="Model Year")
+
+
+```
+### Cylinder and Model Year
+```{r}
+
+df %>% ggplot(aes(year,fill=as.factor(cyl)))+
+  geom_bar()+
+  labs(title = "Cylinder and Model year",
+       x="Cylinder",
+       y="No. of observations")
+
+
+```
+
+
+### Brand and Mileage
+
+```{r}
+df %>%filter(t_mileage<=750000) %>%  
+  ggplot(aes(brand,t_mileage))+
+  geom_boxplot()+
+  geom_jitter(size=0.2,col="red",alpha=0.5)+
+  stat_summary(fun = "mean",geom="crossbar",col="blue")+
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5))+
+  labs(title = "Brand and Mileage",
+       subtitle = "Blue crossbar indicates teh mean of mileage",
+       x="Brand",
+       y="Mileage")
+
+
+
+
+```
+### Coefficent of Mileage and Brand
+
+```{r}
+
+df %>%filter(t_mileage<=750000) %>%  
+  group_by(brand) %>% 
+  summarise(meanMileage=mean(t_mileage),
+            medianMileage=median(t_mileage),
+            sdMileage=sd(t_mileage),
+            coe_sd_mileage=sdMileage/meanMileage,
+            no=n()) %>% 
+            arrange(desc(coe_sd_mileage)) %>% 
+            ggplot(aes(no,coe_sd_mileage))+
+  geom_point()+
+  geom_text(aes(label=brand),size=2,vjust=3)+
+  labs(title = "Coefficent of Mileage and Brand",
+       x="No of car",
+       y="Coefficent of variation - Mileage")
+
+```
+
+### Brand and Cylinder
+
+```{r}
+df %>% ggplot(aes(brand,fill=as.factor(cyl)))+
+  geom_bar()+
+  scale_fill_brewer(palette = "Set1")+
+  theme(axis.text.x = element_text(angle = 90,vjust=0.5,hjust = 1))+
+  labs(title = "Barplot of Brand and Cylinder",
+       x="Brand",
+       y="Number of observation")
+```
+### Brand and Price
+```{r}
+df %>%  
+  ggplot(aes(brand,t_price))+
+  geom_boxplot()+
+  geom_jitter(size=0.2,col="red",alpha=0.5)+
+  stat_summary(fun = "mean",geom="crossbar",col="blue")+
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5))+
+  labs(title = "Brand and Price",
+       subtitle = "Blue crossbar indicates teh mean of price",
+       x="Brand",
+       y="Price")
+
+```
+### Brand and option
+```{r}
+df %>% ggplot(aes(brand,fill=option))+
+  geom_bar()+
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+
+### Model name and Mileage
+
+```{r}
+df %>% filter(Brand_Model%in%t & t_mileage<=750000) %>% 
+  ggplot(aes(Brand_Model,t_mileage))+
+  geom_boxplot()+
+  geom_jitter(size=0.2,col="red")+
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5,hjust=1))+
+  stat_summary(fun="mean",geom="crossbar",col="blue")+
+  labs(title = "Model Name and Mileage",
+       subtitle = "Jitter plot and box plot",
+       x="Model Name",
+       y="Mileage")
+
+df %>% filter(Brand_Model%in%t & t_mileage<=750000) %>% 
+  group_by(Brand_Model) %>% 
+  summarise(meanMileage=mean(t_mileage),
+          medianMileage=median(t_mileage),
+          sdMileage=sd(t_mileage),
+          coe_variation_mil=sdMileage/meanMileage,
+          no=n()) %>% 
+  ggplot(aes(no,coe_variation_mil))+
+  geom_point()+
+  geom_text(aes(label=Brand_Model),size=2,vjust=3)+
+  labs(title = "Coefficent of Mileage and Model Name",
+       x="No of car",
+       y="Coefficent of variation - Mileage")
+
+
+
+
+  
+```
+### Model Name and Price
+
+```{r}
+df %>% filter(Brand_Model%in%t) %>% 
+  ggplot(aes(Brand_Model,t_price))+
+  geom_boxplot()+
+  geom_jitter(size=0.2,col="red")+
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5,hjust=1))+
+  labs(title = "Model Name and Price",
+       subtitle = "Jitter plot and box plot",
+       x="Model Name",
+       y="Price")
+
+
+df %>% filter(Brand_Model%in%t & t_mileage<=750000) %>% 
+  group_by(Brand_Model) %>% 
+  summarise(mean_price=mean(t_price),
+          median_price=median(t_price),
+          sd_price=sd(t_price),
+          coe_variation_price=sd_price/mean_price,
+          no=n()) %>% 
+  ggplot(aes(no,coe_variation_price))+
+  geom_point()+
+  geom_text(aes(label=Brand_Model),size=2,vjust=3)+
+  labs(title = "Coefficent of Price and Model Name",
+       x="No of car",
+       y="Coefficent of variation - Price")
+
+
+```
+### Modelname and option
+```{r}
+df %>% filter(Brand_Model%in%t) %>% 
+  ggplot(aes(Brand_Model,fill=option))+
+  geom_bar()+
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5,hjust=1))
+  
+  
+
+```
+
+
+### Cylinder and Mileage
+
+```{r}
+df %>% filter(t_mileage<=750000) %>% 
+  ggplot(aes(as.factor(cyl),t_mileage))+
+  geom_boxplot()+
+  geom_jitter(alpha=0.3,col="red",size=0.7)+
+  stat_summary(geom="crossbar",col="blue",fun="mean")+
+  labs(title = "Mileage and Cylinder",
+       subtitle = "Blue line indicates the mean of Mileage",
+       x="Cylinder",
+       y="Mileage")
+
+
+```
+### Mileage and Price
+```{r}
+df %>% filter(t_mileage<=750000) %>% 
+  ggplot(aes(t_mileage,t_price))+
+  geom_point()+
+  geom_smooth()+
+  labs(title = "Mileage and Price",
+       x="Price",
+       y="Mileage")
+  
+  
+```
+
+### Cylinder and Price
+
+```{r}
+df %>% ggplot(aes(as.factor(cyl),t_price))+
+  geom_boxplot()+
+  geom_jitter(col="red",alpha=0.3,size=0.5)+
+  labs(title = "Price and Cylinder",
+       subtitle = "Blue bar indicates the mean of price",
+       x="Cylinder",
+       y="Price")
+```
+## Multivariate Analysis
+
+### Price and Mileage based on Year
+
+```{r}
+df %>% filter(Brand_Model%in%t & t_mileage<=750000) %>% 
+  ggplot(aes(t_price,t_mileage))+
+  geom_point()+
+  geom_smooth(method = lm)+
+  facet_wrap(~year)
+
+df %>% filter(Brand_Model%in%t & t_mileage<=750000) %>% 
+  group_by(year) %>% 
+  summarise(correlation=cor(t_price,t_mileage))
+
+```
+
+### Price and Mileage based on Brand
+
+```{r}
+df %>% filter(t_mileage<=750000) %>% 
+  ggplot(aes(t_price,t_mileage))+
+  geom_point()+
+  geom_smooth(method = lm)+
+  facet_wrap(~brand)
+
+df %>% filter(t_mileage<=750000) %>% 
+  group_by(brand) %>% 
+  summarise(correlation=cor(t_price,t_mileage),
+            no=n())
+
+```
+
+### Correlation of price and mileage based on Top 30 Model name, year and option
+```{r}
+
+df %>% filter(t_mileage<=750000 & Brand_Model%in%t) %>% 
+  group_by(Brand_Model,year,option) %>% 
+  summarise(Correlation=cor(t_mileage,t_price),No=n()) %>% 
+  mutate(Model_year=paste(Brand_Model,year,option,sep = "_")) %>% 
+  filter(Correlation<=-0.5) %>% 
+  ggplot(aes(Model_year,Correlation,fill=No))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90,hjust = 1,vjust = 0))+
+  labs(title = "Correlation of Price and Mileage based on Top 30 Model,year and option",
+       x="Model name, Year and Options",
+       y="Correlation")+
+  geom_text(aes(label=No),vjust=1)
+  
+
+  
+```
+
+```{r}
+
+
+```
+
+
+### Correlation of price and mileage based on Top 30 Model name
+
+
+```{r}
+df %>% filter(t_mileage<=750000 & Brand_Model%in%t) %>% 
+  group_by(Brand_Model) %>% 
+  summarise(Correlation=cor(t_mileage,t_price),No=n()) %>% 
+  ggplot(aes(Brand_Model,Correlation,fill=No))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90,hjust = 1,vjust = 0))+
+  labs(title = "Correlation of Price and Mileage based on Model name",
+       x="ModelName",
+       y="Correlation")+
+  geom_text(aes(label=No),vjust=1)
+
+# Scatter plot
+
+df %>% filter(Brand_Model%in%t & t_mileage<=750000) %>% 
+  ggplot(aes(t_price,t_mileage))+
+  geom_point()+
+  geom_smooth(method = lm)+
+  facet_wrap(~Brand_Model)
+
+
+```
+
+
+```{r}
+
+df %>% filter(Brand_Model%in%t & t_mileage<=750000) %>% 
+  ggplot(aes(t_price,t_mileage))+
+  geom_point()+
+  geom_smooth(method = lm)+
+  facet_wrap(~cyl)
+
+
+df %>% filter(Brand_Model%in%t & t_mileage<=750000) %>% 
+  ggplot(aes(t_price,t_mileage))+
+  geom_point()+
+  geom_smooth(method = lm)+
+  facet_wrap(~option)
+
+df %>% filter(Brand_Model%in%t & t_mileage<=750000) %>% 
+  ggplot(aes(t_price,t_mileage))+
+  geom_point()+
+  geom_smooth(method = lm)+
+  facet_wrap(~brand)
+
+df %>% filter(Brand_Model%in%t & t_mileage<=750000) %>% 
+  ggplot(aes(t_price,t_mileage))+
+  geom_point()+
+  geom_smooth(method = lm)+
+  facet_wrap(~ltr)
+
+```
+
+
+## Findings
+
++ Majority of observations are lying in year 2019.
++ Nissan, Mitsubishi and Toyota are the major brands based on observations.
++ Pajero, Patrol and Sunny are the major models based on observations.
++ In mileage, the majority of observations are lying in between 50000 to 100000.
++ 4 cylinder is listed more in e-commerce website.
++ 1.6L,2.0L and 3.5 is listed more in website.
++ Majority of price value is lying between 50000-75000 dirhams
+
++ 2019 model year car is more in top 3 brands ( Mitsubishi, Nissan and Toyota)
++ Nissan, Mitsubishi and Toyota are the major brands based on observations. The 2018 and 2019 model year cars are available more compare to other.
++ Pajero, Patrol and Sunny are the major models based on observations and 2019 model year is listed more.
++ The dispersion rate is high in 2016,2021 and 2022.
++ The mid and basic option is listed more.
++ The 4 cylinder and 6 cylinder cars are listed more in every model years
++ The 4 cylinder and 6 cylinder cars have noticed on top Brands like Nissan, Mitsubishi and Toyota
++ The mid and basic option is noticed on all brands and Models. The high option cars are very less.
++ Price and mileage have negative correlation ( -0.24 )
++ Price and Cylinder has positve correlation ( 0.58)
+
+
+
+
+ 
+
+
+
+
+
+
+
